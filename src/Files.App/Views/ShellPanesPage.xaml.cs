@@ -440,6 +440,13 @@ namespace Files.App.Views
 
 		// Private methods
 
+		private void RemoteToggle_Click(object sender, RoutedEventArgs e)
+		{
+			RemotePane.Visibility = ((ToggleButton)sender).IsChecked == true
+				? Visibility.Visible
+				: Visibility.Collapsed;
+		}
+
 		private ModernShellPage? GetPane(int index = -1)
 		{
 			if (index is -1 || RootGrid.Children.Count - 1 < index)

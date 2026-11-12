@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="RemoteToggle.Content" xml:space="preserve">
+    <value>Remote</value>
+  </data>
+  <data name="WebsiteLink.Content" xml:space="preserve">
+    <value>Paco’s World</value>
+  </data>
+  <data name="RemoteHeading.Text" xml:space="preserve">
+    <value>Remote connection</value>
+  </data>
+  <data name="Protocol.Header" xml:space="preserve">
+    <value>Protocol</value>
+  </data>
+  <data name="ExplicitFtps.Content" xml:space="preserve">
+    <value>FTPS (explicit TLS)</value>
+  </data>
+  <data name="ImplicitFtps.Content" xml:space="preserve">
+    <value>FTPS (implicit TLS)</value>
+  </data>
+  <data name="Host.Header" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="Port.Header" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="Username.Header" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="PrototypeStatus.Text" xml:space="preserve">
+    <value>Layout preview. Server connections and file transfers are pending.</value>
+  </data>
+</root>
