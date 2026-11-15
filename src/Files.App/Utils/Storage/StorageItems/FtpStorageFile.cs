@@ -21,6 +21,7 @@ namespace Files.App.Utils.Storage
 		public override string ContentType => "application/octet-stream";
 		public override string FileType => IO.Path.GetExtension(Name);
 		public string FtpPath { get; }
+		private readonly FtpListItem? _listingEntry;
 		public override string FolderRelativeId => $"0\\{Name}";
 
 		public override string DisplayType
@@ -55,6 +56,7 @@ namespace Files.App.Utils.Storage
 		{
 			Path = PathNormalization.Combine(folder, ftpItem.Name);
 			Name = ftpItem.Name;
+			_listingEntry = ftpItem;
 			FtpPath = FtpHelpers.GetFtpPath(Path);
 			DateCreated = ftpItem.RawCreated < DateTime.FromFileTimeUtc(0) ? DateTimeOffset.MinValue : ftpItem.RawCreated;
 		}
@@ -80,6 +82,9 @@ namespace Files.App.Utils.Storage
 
 		public override IAsyncOperation<BaseBasicProperties> GetBasicPropertiesAsync()
 		{
+			if (_listingEntry is { } entry)
+				return Task.FromResult<BaseBasicProperties>(new FtpFileBasicProperties(entry)).AsAsyncOperation();
+
 			return AsyncInfo.Run((cancellationToken) => SafetyExtensions.Wrap(async () =>
 			{
 				using var ftpClient = GetFtpClient();
@@ -262,12 +267,11 @@ namespace Files.App.Utils.Storage
 		private AsyncFtpClient GetFtpClient()
 		{
 			string host = FtpHelpers.GetFtpHost(Path);
-			ushort port = FtpHelpers.GetFtpPort(Path);
 			var credentials = Credentials is not null ?
 				new NetworkCredential(Credentials.UserName, Credentials.SecurePassword) :
 				FtpManager.Credentials.Get(host, FtpManager.Anonymous);
 
-			return new(host, credentials, port);
+			return FtpManager.CreateClient(Path, credentials ?? FtpManager.Anonymous);
 		}
 
 		private async void FtpDataStreamingHandlerAsync(StreamedFileDataRequest request)
@@ -310,7 +314,7 @@ namespace Files.App.Utils.Storage
 
 			public FtpFileBasicProperties(FtpListItem item)
 			{
-				Size = (ulong)item.Size;
+				Size = (ulong)Math.Max(0, item.Size);
 				DateCreated = item.RawCreated < DateTime.FromFileTimeUtc(0) ? DateTimeOffset.MinValue : item.RawCreated;
 				DateModified = item.RawModified < DateTime.FromFileTimeUtc(0) ? DateTimeOffset.MinValue : item.RawModified;
 			}

@@ -1,4 +1,4 @@
-﻿<!--  Copyright (c) Files Community. SPDX-License-Identifier: MPL-2.0  -->
+<!--  Copyright (c) Files Community. SPDX-License-Identifier: MPL-2.0  -->
 <Page
 	x:Class="Files.App.Views.ShellPanesPage"
 	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -58,19 +58,46 @@
 					<TextBlock
 						x:Uid="/PacosFileManager/RemoteHeading"
 						Style="{StaticResource SubtitleTextBlockStyle}" />
-					<ComboBox
-						x:Uid="/PacosFileManager/Protocol"
-						HorizontalAlignment="Stretch"
-						SelectedIndex="0">
-						<ComboBoxItem Content="SFTP" />
-						<ComboBoxItem x:Uid="/PacosFileManager/ExplicitFtps" />
-						<ComboBoxItem x:Uid="/PacosFileManager/ImplicitFtps" />
-						<ComboBoxItem Content="FTP" />
-					</ComboBox>
-					<TextBox x:Uid="/PacosFileManager/Host" />
-					<TextBox x:Uid="/PacosFileManager/Port" InputScope="Number" />
-					<TextBox x:Uid="/PacosFileManager/Username" />
-					<TextBlock x:Uid="/PacosFileManager/PrototypeStatus" TextWrapping="Wrap" />
+					<StackPanel x:Name="RemoteSettings" Spacing="8">
+						<ListView x:Name="SavedFtpSites" MaxHeight="180">
+							<ListView.ItemTemplate>
+								<DataTemplate>
+									<StackPanel Orientation="Horizontal" Spacing="8">
+										<TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+										<Button Content="Quick connect" Tag="{Binding}" Click="QuickFtpConnect_Click" />
+									</StackPanel>
+								</DataTemplate>
+							</ListView.ItemTemplate>
+						</ListView>
+						<Button Content="Import FileZilla sites" Click="ImportFileZillaSites_Click" />
+						<TextBox x:Name="FtpSiteName" Header="Site name" />
+						<TextBox x:Name="FtpStartPath" Header="Saved folder" Text="/" />
+						<Button Content="Save site" Click="SaveFtpSite_Click" />
+						<Button Content="Save active FTP folder" Click="SaveFtpPath_Click" />
+						<Button Content="Sync both panes" Click="SyncFtpPanes_Click" />
+						<ComboBox x:Name="RemoteProtocol" Header="Protocol" SelectedIndex="1" HorizontalAlignment="Stretch">
+							<ComboBoxItem Content="SFTP" IsEnabled="False" />
+							<ComboBoxItem Content="Explicit FTPS" />
+							<ComboBoxItem Content="Implicit FTPS" />
+							<ComboBoxItem Content="FTP" />
+						</ComboBox>
+						<TextBox x:Name="RemoteHost" Header="Host" />
+						<TextBox x:Name="RemotePort" Header="Port (optional)" InputScope="Number" />
+						<TextBox x:Name="RemoteUser" Header="Username" />
+						<PasswordBox x:Name="RemotePassword" Header="Password" />
+					</StackPanel>
+					<Button x:Name="RemoteConnect" Content="Connect" Click="RemoteConnect_Click" />
+					<StackPanel x:Name="RemoteBrowser" Visibility="Collapsed" Spacing="8">
+						<TextBox x:Name="RemoteDirectory" Header="Remote folder" Text="/" />
+						<Button Content="List folder" Click="RemoteList_Click" />
+						<ListView x:Name="RemoteEntries" MaxHeight="240" DisplayMemberPath="Name" />
+						<Button Content="Open selected folder" Click="RemoteOpen_Click" />
+						<Button Content="Upload file…" Click="RemoteUpload_Click" />
+						<Button Content="Download to active pane" Click="RemoteDownload_Click" />
+					</StackPanel>
+					<Button x:Name="RemoteCancel" Content="Cancel" IsEnabled="False" Click="RemoteCancel_Click" />
+					<ProgressBar x:Name="RemoteProgress" Visibility="Collapsed" />
+					<TextBlock x:Name="RemoteStatus" TextWrapping="Wrap" />
 				</StackPanel>
 			</ScrollViewer>
 		</Grid>

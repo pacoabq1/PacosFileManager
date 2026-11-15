@@ -53,7 +53,9 @@ namespace Files.App.Utils.Storage
 
 				try
 				{
-					items = await rootFolder.GetItemsAsync(count, maxItemsToRetrieve);
+					items = rootFolder is FtpStorageFolder
+						? await rootFolder.GetItemsAsync().AsTask(cancellationToken) ?? []
+						: await rootFolder.GetItemsAsync(count, maxItemsToRetrieve);
 					if (items is null || items.Count == 0)
 					{
 						break;
@@ -140,6 +142,9 @@ namespace Files.App.Utils.Storage
 					if (cancellationToken.IsCancellationRequested)
 						break;
 				}
+
+				if (rootFolder is FtpStorageFolder)
+					break;
 
 				count += maxItemsToRetrieve;
 

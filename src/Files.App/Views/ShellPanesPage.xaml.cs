@@ -265,6 +265,7 @@ namespace Files.App.Views
 		{
 			_panePointerPressedHandler = Pane_PointerPressed;
 			InitializeComponent();
+			LoadFtpSites();
 
 			ShellPaneArrangement = GeneralSettingsService.ShellPaneArrangementOption;
 
@@ -1068,6 +1069,7 @@ namespace Files.App.Views
 
 		public void Dispose()
 		{
+			CloseRemoteConnection();
 			App.Logger.LogInformation($"ShellPanesPage.Dispose: PaneCount={GetPaneCount()}, ActivePane={LogPathHelper.RedactPath(ActivePane?.TabBarItemParameter?.NavigationParameter?.ToString())}");
 
 			TabBar.TabDragStarted -= TabBar_TabDragStarted;

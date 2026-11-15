@@ -2292,17 +2292,17 @@ namespace Files.App.ViewModels
 				!isMtp &&
 				!isShellFolder &&
 				!isWslDistro;
+			bool isFtp = FtpHelpers.IsFtpPath(path);
 			bool isNetdisk = false;
 
 			try
 			{
 				// Special handling for network drives
-				if (!isNetwork)
+				if (!isNetwork && !isFtp)
 					isNetdisk = await Task.Run(() => new DriveInfo(path).DriveType == System.IO.DriveType.Network);
 			}
 			catch { }
 
-			bool isFtp = FtpHelpers.IsFtpPath(path);
 			bool enumFromStorageFolder = isBoxFolder || isFtp;
 
 			BaseStorageFolder? rootFolder = null;
@@ -2339,6 +2339,17 @@ namespace Files.App.ViewModels
 			{
 				// Enumerate with the handle opened above; rootFolder only used for Bitlocker
 				currentStorageFolder = null;
+			}
+			else if (isFtp)
+			{
+				rootFolder = await FtpStorageFolder.FromPathAsync(path);
+				if (rootFolder is null)
+				{
+					ShowLocationInaccessibleOrMissing(path);
+					return -1;
+				}
+
+				currentStorageFolder = new StorageFolderWithPath(rootFolder, path);
 			}
 			else if (workingRoot is not null)
 			{
@@ -2397,13 +2408,15 @@ namespace Files.App.ViewModels
 				// The handle from the open above is unused on the storage-folder path.
 				hFile?.Dispose();
 
-				var basicProps = await rootFolder?.GetBasicPropertiesAsync();
+				var modified = isFtp || rootFolder is null
+					? DateTimeOffset.MinValue
+					: (await rootFolder.GetBasicPropertiesAsync()).DateModified;
 				var currentFolder = library ?? new ListedItem(rootFolder?.FolderRelativeId ?? string.Empty)
 				{
 					PrimaryItemAttribute = StorageItemTypes.Folder,
 					ItemPropertiesInitialized = true,
 					ItemNameRaw = rootFolder?.DisplayName ?? string.Empty,
-					ItemDateModifiedReal = basicProps.DateModified,
+					ItemDateModifiedReal = modified,
 					ItemType = rootFolder?.DisplayType ?? string.Empty,
 					FileImage = null,
 					LoadFileIcon = false,
