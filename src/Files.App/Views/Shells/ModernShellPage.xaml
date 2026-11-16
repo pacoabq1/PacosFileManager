@@ -19,12 +19,24 @@
 		<ResourceDictionary>
 			<ResourceDictionary.ThemeDictionaries>
 				<ResourceDictionary x:Key="Light">
-					<Thickness x:Key="Local.ActivePane.BorderThickness">1</Thickness>
+					<SolidColorBrush x:Key="Local.Pane.ActiveNavigation" Color="#DCEAF7" />
+					<SolidColorBrush x:Key="Local.Pane.InactiveNavigation" Color="#F4E2E6" />
+					<SolidColorBrush x:Key="Local.Pane.ActiveSurface" Color="#F7FAFD" />
+					<SolidColorBrush x:Key="Local.Pane.InactiveSurface" Color="#FFF4F5" />
+					<Thickness x:Key="Local.ActivePane.BorderThickness">1,3,1,1</Thickness>
 				</ResourceDictionary>
 				<ResourceDictionary x:Key="Dark">
-					<Thickness x:Key="Local.ActivePane.BorderThickness">1</Thickness>
+					<SolidColorBrush x:Key="Local.Pane.ActiveNavigation" Color="#23445F" />
+					<SolidColorBrush x:Key="Local.Pane.InactiveNavigation" Color="#471B20" />
+					<SolidColorBrush x:Key="Local.Pane.ActiveSurface" Color="#08090B" />
+					<SolidColorBrush x:Key="Local.Pane.InactiveSurface" Color="#190506" />
+					<Thickness x:Key="Local.ActivePane.BorderThickness">1,3,1,1</Thickness>
 				</ResourceDictionary>
 				<ResourceDictionary x:Key="HighContrast">
+					<SolidColorBrush x:Key="Local.Pane.ActiveNavigation" Color="{ThemeResource SystemColorWindowColor}" />
+					<SolidColorBrush x:Key="Local.Pane.InactiveNavigation" Color="{ThemeResource SystemColorWindowColor}" />
+					<SolidColorBrush x:Key="Local.Pane.ActiveSurface" Color="{ThemeResource SystemColorWindowColor}" />
+					<SolidColorBrush x:Key="Local.Pane.InactiveSurface" Color="{ThemeResource SystemColorWindowColor}" />
 					<Thickness x:Key="Local.ActivePane.BorderThickness">3</Thickness>
 				</ResourceDictionary>
 			</ResourceDictionary.ThemeDictionaries>
@@ -46,12 +58,13 @@
 		<Grid.RowDefinitions>
 			<RowDefinition Height="Auto" />
 			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
 			<RowDefinition Height="*" />
 			<RowDefinition Height="Auto" />
 		</Grid.RowDefinitions>
 
 		<Image
-			Grid.RowSpan="3"
+			Grid.RowSpan="4"
 			HorizontalAlignment="{x:Bind ShellViewModel.FolderBackgroundImageHorizontalAlignment, Mode=OneWay}"
 			VerticalAlignment="{x:Bind ShellViewModel.FolderBackgroundImageVerticalAlignment, Mode=OneWay}"
 			Opacity="{x:Bind ShellViewModel.FolderBackgroundImageOpacity, Mode=OneWay}"
@@ -61,7 +74,7 @@
 		<!--  Swipe Backward Icon  -->
 		<Border
 			x:Name="BackIcon"
-			Grid.RowSpan="3"
+			Grid.RowSpan="4"
 			Width="48"
 			Height="48"
 			Margin="-4,0,0,0"
@@ -83,7 +96,7 @@
 		<!--  Swipe Forward Icon  -->
 		<Border
 			x:Name="ForwardIcon"
-			Grid.RowSpan="3"
+			Grid.RowSpan="4"
 			Width="48"
 			Height="48"
 			Margin="0,0,-4,0"
@@ -156,10 +169,61 @@
 			</StackPanel>
 		</Grid>
 
+		<Border
+			x:Name="PaneNavigation"
+			Grid.Row="2"
+			Padding="6,3"
+			Background="{ThemeResource ControlFillColorDefaultBrush}"
+			Visibility="Collapsed">
+			<Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+				<StackPanel Orientation="Horizontal" Spacing="4">
+					<Button
+						AutomationProperties.Name="{helpers:ResourceString Name=NavigateBackDescription}"
+						Click="PaneBack_Click"
+						IsEnabled="{x:Bind ToolbarViewModel.CanGoBack, Mode=OneWay}"
+						ToolTipService.ToolTip="{helpers:ResourceString Name=NavigateBackDescription}">
+						<SymbolIcon Symbol="Back" />
+					</Button>
+					<Button
+						AutomationProperties.Name="{helpers:ResourceString Name=NavigateForwardDescription}"
+						Click="PaneForward_Click"
+						IsEnabled="{x:Bind ToolbarViewModel.CanGoForward, Mode=OneWay}"
+						ToolTipService.ToolTip="{helpers:ResourceString Name=NavigateForwardDescription}">
+						<SymbolIcon Symbol="Forward" />
+					</Button>
+					<Button
+						AutomationProperties.Name="{helpers:ResourceString Name=NavigateUpDescription}"
+						Click="PaneUp_Click"
+						IsEnabled="{x:Bind ToolbarViewModel.CanNavigateToParent, Mode=OneWay}"
+						ToolTipService.ToolTip="{helpers:ResourceString Name=NavigateUpDescription}">
+						<SymbolIcon Symbol="Up" />
+					</Button>
+					<Button
+						AutomationProperties.Name="{helpers:ResourceString Name=UpdateFiles}"
+						Click="PaneRefresh_Click"
+						IsEnabled="{x:Bind ToolbarViewModel.CanRefresh, Mode=OneWay}"
+						ToolTipService.ToolTip="{helpers:ResourceString Name=UpdateFiles}">
+						<SymbolIcon Symbol="Refresh" />
+					</Button>
+					<Button
+						AutomationProperties.Name="{helpers:ResourceString Name=Home}"
+						Click="PaneHome_Click"
+						ToolTipService.ToolTip="{helpers:ResourceString Name=Home}">
+						<SymbolIcon Symbol="Home" />
+					</Button>
+				</StackPanel>
+				<TextBlock
+					Grid.Column="1"
+					VerticalAlignment="Center"
+					Text="{x:Bind ToolbarViewModel.PathControlDisplayText, Mode=OneWay}"
+					TextTrimming="CharacterEllipsis" />
+			</Grid>
+		</Border>
+
 		<!--  Shell Frame  -->
 		<Frame
 			x:Name="ItemDisplayFrame"
-			Grid.Row="2"
+			Grid.Row="3"
 			x:FieldModifier="public"
 			Navigated="ItemDisplayFrame_Navigated"
 			TabIndex="1" />
@@ -167,7 +231,7 @@
 		<!--  Status Bar  -->
 		<uc:StatusBar
 			x:Name="StatusBar"
-			Grid.Row="3"
+			Grid.Row="4"
 			ShowInfoText="{x:Bind IsStatusBarVisible, Mode=OneWay}"
 			Visibility="{x:Bind IsStatusBarVisible, Mode=OneWay}" />
 
@@ -175,11 +239,18 @@
 			<VisualStateGroup x:Name="ShellBorderFocusState">
 				<VisualState x:Name="ShellBorderFocusOnState">
 					<VisualState.Setters>
+						<Setter Target="PaneNavigation.Background" Value="{ThemeResource Local.Pane.ActiveNavigation}" />
+						<Setter Target="RootGrid.Background" Value="{ThemeResource Local.Pane.ActiveSurface}" />
+						<Setter Target="PaneNavigation.Visibility" Value="Visible" />
+						<Setter Target="RootGrid.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}" />
 						<Setter Target="RootGrid.BorderThickness" Value="{ThemeResource Local.ActivePane.BorderThickness}" />
 					</VisualState.Setters>
 				</VisualState>
 				<VisualState x:Name="ShellBorderFocusOffState">
 					<VisualState.Setters>
+						<Setter Target="PaneNavigation.Background" Value="{ThemeResource Local.Pane.InactiveNavigation}" />
+						<Setter Target="RootGrid.Background" Value="{ThemeResource Local.Pane.InactiveSurface}" />
+						<Setter Target="PaneNavigation.Visibility" Value="Visible" />
 						<Setter Target="RootGrid.BorderThickness" Value="1" />
 					</VisualState.Setters>
 				</VisualState>
@@ -190,18 +261,6 @@
 				</VisualState>
 			</VisualStateGroup>
 
-			<VisualStateGroup x:Name="ShellBackgroundFocusState">
-				<VisualState x:Name="ShellBackgroundFocusOnState">
-					<VisualState.Setters>
-						<Setter Target="RootGrid.Background" Value="{ThemeResource App.Theme.FileArea.BackgroundBrush}" />
-					</VisualState.Setters>
-				</VisualState>
-				<VisualState x:Name="ShellBackgroundFocusOffState">
-					<VisualState.Setters>
-						<Setter Target="RootGrid.Background" Value="{ThemeResource App.Theme.FileArea.SecondaryBackgroundBrush}" />
-					</VisualState.Setters>
-				</VisualState>
-			</VisualStateGroup>
 		</VisualStateManager.VisualStateGroups>
 	</Grid>
 </local:BaseShellPage>

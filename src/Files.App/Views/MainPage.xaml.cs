@@ -281,8 +281,9 @@ namespace Files.App.Views
 					HotKey hotKey = new((Keys)e.Key, currentModifiers);
 					var source = e.OriginalSource as DependencyObject;
 
-					// A textbox takes precedence over certain hotkeys.
-					if (source?.FindAscendantOrSelf<TextBox>() is not null)
+					// Text entry takes precedence over file manager hotkeys.
+					if (source?.FindAscendantOrSelf<TextBox>() is not null ||
+						source?.FindAscendantOrSelf<PasswordBox>() is not null)
 						break;
 
 					// Execute command for hotkey

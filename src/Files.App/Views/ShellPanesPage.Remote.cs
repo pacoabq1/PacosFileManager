@@ -79,6 +79,7 @@ namespace Files.App.Views
 					_remoteClient = client;
 					RemotePassword.Password = string.Empty;
 					RemoteConnect.Content = "Disconnect";
+					RemoteConnectionStatus.Text = "Connected";
 					RemoteBrowser.Visibility = Visibility.Visible;
 				}
 				finally
@@ -219,11 +220,14 @@ namespace Files.App.Views
 			RemoteProgress.Value = 0;
 			RemoteProgress.Visibility = Visibility.Visible;
 			RemoteStatus.Text = $"Transferring to {destination}";
+			RemoteTransferDetails.Text = Path.GetFileName(destination);
+			RemoteTransferDetails.Visibility = Visibility.Visible;
 			return new Progress<FtpProgress>(progress =>
 			{
 				if (_remoteOperation?.Token != token || token.IsCancellationRequested)
 					return;
 
+				RemoteTransferDetails.Text = $"{Path.GetFileName(destination)} — {progress.TransferSpeedToString()}";
 				RemoteProgress.IsIndeterminate = progress.Progress < 0;
 				if (progress.Progress >= 0)
 					RemoteProgress.Value = progress.Progress;
@@ -261,6 +265,7 @@ namespace Files.App.Views
 				RemoteSettings.IsHitTestVisible = true;
 				RemoteCancel.IsEnabled = false;
 				RemoteProgress.Visibility = Visibility.Collapsed;
+				RemoteTransferDetails.Visibility = Visibility.Collapsed;
 				RemoteProgress.IsIndeterminate = false;
 				if (_remoteDisposed)
 					DisconnectRemote();
@@ -284,6 +289,7 @@ namespace Files.App.Views
 			_remoteClient = null;
 			RemoteEntries.ItemsSource = null;
 			RemoteConnect.Content = "Connect";
+			RemoteConnectionStatus.Text = "Disconnected";
 			RemoteBrowser.Visibility = Visibility.Collapsed;
 		}
 	}

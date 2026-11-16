@@ -69,6 +69,10 @@
 								</DataTemplate>
 							</ListView.ItemTemplate>
 						</ListView>
+						<StackPanel Orientation="Horizontal" Spacing="8">
+							<Button Content="Edit site" Click="EditFtpSite_Click" />
+							<Button Content="Delete site" Click="DeleteFtpSite_Click" />
+						</StackPanel>
 						<Button Content="Import FileZilla sites" Click="ImportFileZillaSites_Click" />
 						<TextBox x:Name="FtpSiteName" Header="Site name" />
 						<TextBox x:Name="FtpStartPath" Header="Saved folder" Text="/" />
@@ -86,6 +90,7 @@
 						<TextBox x:Name="RemoteUser" Header="Username" />
 						<PasswordBox x:Name="RemotePassword" Header="Password" />
 					</StackPanel>
+					<TextBlock x:Name="RemoteConnectionStatus" Text="Disconnected" FontWeight="SemiBold" />
 					<Button x:Name="RemoteConnect" Content="Connect" Click="RemoteConnect_Click" />
 					<StackPanel x:Name="RemoteBrowser" Visibility="Collapsed" Spacing="8">
 						<TextBox x:Name="RemoteDirectory" Header="Remote folder" Text="/" />
@@ -96,6 +101,7 @@
 						<Button Content="Download to active pane" Click="RemoteDownload_Click" />
 					</StackPanel>
 					<Button x:Name="RemoteCancel" Content="Cancel" IsEnabled="False" Click="RemoteCancel_Click" />
+					<TextBlock x:Name="RemoteTransferDetails" TextWrapping="Wrap" Visibility="Collapsed" />
 					<ProgressBar x:Name="RemoteProgress" Visibility="Collapsed" />
 					<TextBlock x:Name="RemoteStatus" TextWrapping="Wrap" />
 				</StackPanel>

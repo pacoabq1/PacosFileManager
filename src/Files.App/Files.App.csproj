@@ -1,7 +1,6 @@
 ﻿<!--  Copyright (c) Files Community. Licensed under the MIT License.  -->
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <Sdk Name="PublishWithSatoriGC" Version="10.0.15-satori.42242472690.2" />
 
     <PropertyGroup>
         <EnableMsixTooling>true</EnableMsixTooling>

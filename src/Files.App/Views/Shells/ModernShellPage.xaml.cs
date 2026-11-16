@@ -219,6 +219,24 @@ namespace Files.App.Views.Shells
 			base.Forward_Click();
 		}
 
+		private void PaneBack_Click(object sender, RoutedEventArgs e)
+		{
+			if (CanNavigateBackward)
+				Back_Click();
+		}
+
+		private void PaneForward_Click(object sender, RoutedEventArgs e)
+		{
+			if (CanNavigateForward)
+				Forward_Click();
+		}
+
+		private void PaneUp_Click(object sender, RoutedEventArgs e) => Up_Click();
+
+		private async void PaneRefresh_Click(object sender, RoutedEventArgs e) => await Refresh_Click();
+
+		private void PaneHome_Click(object sender, RoutedEventArgs e) => NavigateHome();
+
 		public override void Up_Click()
 		{
 			if (!ToolbarViewModel.CanNavigateToParent)

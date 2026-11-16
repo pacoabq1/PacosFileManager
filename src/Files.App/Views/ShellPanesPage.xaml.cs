@@ -615,17 +615,16 @@ namespace Files.App.Views
 		{
 			if (IsMultiPaneActive)
 			{
-				// Add theme shadow to the active pane
-				if (GetPane(1) is ModernShellPage rightShellPage)
+				if (GetPane(0) is ModernShellPage firstPane)
 				{
-					rightShellPage.RootGrid.Translation = new System.Numerics.Vector3(0, 0, IsLeftPaneActive ? 0 : 32);
-					VisualStateManager.GoToState(GetPane(0), IsLeftPaneActive ? ShellBorderFocusOnState : ShellBorderFocusOffState, true);
+					firstPane.RootGrid.Translation = new System.Numerics.Vector3(0, 0, IsLeftPaneActive ? 32 : 0);
+					VisualStateManager.GoToState(firstPane, IsLeftPaneActive ? ShellBorderFocusOnState : ShellBorderFocusOffState, true);
 				}
 
-				if (GetPane(0) is ModernShellPage leftShellPage)
+				if (GetPane(1) is ModernShellPage secondPane)
 				{
-					leftShellPage.RootGrid.Translation = new System.Numerics.Vector3(0, 0, IsLeftPaneActive ? 32 : 0);
-					VisualStateManager.GoToState(GetPane(1), IsLeftPaneActive ? ShellBorderFocusOffState : ShellBorderFocusOnState, true);
+					secondPane.RootGrid.Translation = new System.Numerics.Vector3(0, 0, IsRightPaneActive ? 32 : 0);
+					VisualStateManager.GoToState(secondPane, IsRightPaneActive ? ShellBorderFocusOnState : ShellBorderFocusOffState, true);
 				}
 			}
 			else
@@ -951,6 +950,7 @@ namespace Files.App.Views
 				element.GotFocus += Pane_GotFocus;
 				element.RightTapped += Pane_RightTapped;
 				element.AddHandler(UIElement.PointerPressedEvent, _panePointerPressedHandler, true);
+				SetShadow();
 			}
 		}
 

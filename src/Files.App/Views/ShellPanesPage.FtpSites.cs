@@ -32,6 +32,18 @@ namespace Files.App.Views
 			{
 				foreach (var site in JsonSerializer.Deserialize(json, FtpSiteJsonContext.Default.SavedFtpSiteArray) ?? [])
 					_ftpSites.Add(site);
+
+				foreach (var group in _ftpSites.GroupBy(SavedSiteConnectionKey, StringComparer.OrdinalIgnoreCase))
+				{
+					// Restored paths identify a server and protocol, but do not identify an account.
+					if (group.Count() != 1)
+						continue;
+
+					var site = group.First();
+					var password = CredentialsHelpers.GetPassword(FtpVaultKey(site), site.User);
+					if (password.Length != 0)
+						FtpManager.SiteCredentials.TryAdd(group.Key, new NetworkCredential(site.User, password));
+				}
 			}
 			catch (JsonException)
 			{
@@ -92,6 +104,54 @@ namespace Files.App.Views
 			}
 		}
 
+		private static string SavedSiteConnectionKey(SavedFtpSite site) =>
+			FtpManager.SiteKey(site.Host, site.Port, site.Protocol switch
+			{
+				1 => FtpEncryptionMode.Explicit,
+				2 => FtpEncryptionMode.Implicit,
+				_ => FtpEncryptionMode.None,
+			});
+
+		private void EditFtpSite_Click(object sender, RoutedEventArgs e)
+		{
+			if (SavedFtpSites.SelectedItem is not SavedFtpSite site)
+			{
+				RemoteStatus.Text = "Select a saved site to edit.";
+				return;
+			}
+
+			PopulateFtpSiteFields(site);
+			RemotePassword.Password = string.Empty;
+			RemoteStatus.Text = $"Editing {site.Name}. Select Save site to apply changes.";
+		}
+
+		private async void DeleteFtpSite_Click(object sender, RoutedEventArgs e)
+		{
+			if (SavedFtpSites.SelectedItem is not SavedFtpSite site)
+			{
+				RemoteStatus.Text = "Select a saved site to delete.";
+				return;
+			}
+
+			if (!await ConfirmRemoteAsync("Delete saved site?", site.Name, "Delete"))
+				return;
+
+			try
+			{
+				if (CredentialsHelpers.GetPassword(FtpVaultKey(site), site.User).Length != 0)
+					CredentialsHelpers.DeleteSavedPassword(FtpVaultKey(site), site.User);
+				_ftpSites.Remove(site);
+				StoreFtpSites();
+				FtpManager.SiteCredentials.TryRemove(SavedSiteConnectionKey(site), out _);
+				RemotePassword.Password = string.Empty;
+				RemoteStatus.Text = $"Deleted {site.Name}.";
+			}
+			catch (Exception ex)
+			{
+				RemoteStatus.Text = $"Could not delete FTP site. {ex.Message}";
+			}
+		}
+
 		private async void QuickFtpConnect_Click(object sender, RoutedEventArgs e)
 		{
 			if (sender is not Button { Tag: SavedFtpSite site } || _remoteOperation is not null)
@@ -100,12 +160,7 @@ namespace Files.App.Views
 			if (_remoteClient is not null)
 				DisconnectRemote();
 			SavedFtpSites.SelectedItem = site;
-			FtpSiteName.Text = site.Name;
-			RemoteHost.Text = site.Host;
-			RemotePort.Text = site.Port.ToString();
-			RemoteProtocol.SelectedIndex = site.Protocol;
-			RemoteUser.Text = site.User;
-			FtpStartPath.Text = site.Folder;
+			PopulateFtpSiteFields(site);
 			RemotePassword.Password = CredentialsHelpers.GetPassword(FtpVaultKey(site), site.User);
 			if (RemotePassword.Password.Length == 0)
 			{
@@ -114,6 +169,16 @@ namespace Files.App.Views
 			}
 
 			await ConnectSavedFtpSiteAsync(site, ActivePaneOrColumn);
+		}
+
+		private void PopulateFtpSiteFields(SavedFtpSite site)
+		{
+			FtpSiteName.Text = site.Name;
+			RemoteHost.Text = site.Host;
+			RemotePort.Text = site.Port.ToString();
+			RemoteProtocol.SelectedIndex = site.Protocol;
+			RemoteUser.Text = site.User;
+			FtpStartPath.Text = site.Folder;
 		}
 
 		private Task ConnectSavedFtpSiteAsync(SavedFtpSite site, IShellPage? pane)
@@ -143,6 +208,7 @@ namespace Files.App.Views
 					_remoteClient = client;
 					RemotePassword.Password = string.Empty;
 					RemoteConnect.Content = "Disconnect";
+					RemoteConnectionStatus.Text = "Connected";
 					RemoteBrowser.Visibility = Visibility.Visible;
 					pane?.NavigateToPath(url);
 				}

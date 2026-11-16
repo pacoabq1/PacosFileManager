@@ -43,6 +43,13 @@ namespace Files.App.Utils.Storage
 				{
 					return await _listingClient.GetListing(directory, token);
 				}
+				catch (NullReferenceException ex) when (ex.Source == "FluentFTP" && !token.IsCancellationRequested)
+				{
+					_listingClient.Dispose();
+					_listingClient = CreateClient(path, credential);
+					await _listingClient.Connect(token);
+					return await _listingClient.GetListing(directory, FtpListOption.ForceList, token);
+				}
 				catch (FluentFTP.Exceptions.FtpCommandException ex) when (ex.CompletionCode is "500" or "502")
 				{
 					return await _listingClient.GetListing(directory, FtpListOption.ForceList, token);
