@@ -125,7 +125,23 @@ namespace Files.App.ViewModels.Layouts
 				return;
 			}
 
-			if (FilesystemHelpers.HasDraggedStorageItems(e.DataView))
+			if (PaneDragDropHelpers.HasRemoteItems(e.DataView))
+			{
+				e.Handled = true;
+				var localFolder = _associatedInstance.ShellViewModel.WorkingDirectory?.TrimPath();
+				if (!string.IsNullOrEmpty(localFolder) && Path.IsPathRooted(localFolder) && !ZipStorageFolder.IsZipPath(localFolder))
+				{
+					var name = Path.GetPathRoot(localFolder) == localFolder ? localFolder : Path.GetFileName(localFolder);
+					e.DragUIOverride.IsCaptionVisible = true;
+					e.DragUIOverride.Caption = string.Format(Strings.CopyToFolderCaptionText.GetLocalizedResource(), name);
+					e.AcceptedOperation = DataPackageOperation.Copy;
+				}
+				else
+				{
+					e.AcceptedOperation = DataPackageOperation.None;
+				}
+			}
+			else if (FilesystemHelpers.HasDraggedStorageItems(e.DataView))
 			{
 				e.Handled = true;
 
@@ -198,6 +214,11 @@ namespace Files.App.ViewModels.Layouts
 							e.DragUIOverride.Caption = string.Format(Strings.CopyToFolderCaptionText.GetLocalizedResource(), folderName);
 							e.AcceptedOperation = DataPackageOperation.Copy;
 						}
+						else if (PaneDragDropHelpers.IsFromOtherPane(e.DataView, _associatedInstance))
+						{
+							e.DragUIOverride.Caption = string.Format(Strings.CopyToFolderCaptionText.GetLocalizedResource(), folderName);
+							e.AcceptedOperation = DataPackageOperation.Copy;
+						}
 						else if (draggedItems.AreItemsInSameDrive(workingDirectoryPath))
 						{
 							e.DragUIOverride.Caption = string.Format(Strings.MoveToFolderCaptionText.GetLocalizedResource(), folderName);
@@ -254,6 +275,8 @@ namespace Files.App.ViewModels.Layouts
 			var deferral = e.GetDeferral();
 			try
 			{
+				if (await PaneDragDropHelpers.TryDropRemoteItemsAsync(e.DataView, _associatedInstance.ShellViewModel.WorkingDirectory?.TrimPath()))
+					return;
 				if (!FilesystemHelpers.HasDraggedStorageItems(e.DataView))
 					return;
 				var workingDirectoryPath = _associatedInstance.ShellViewModel.WorkingDirectory

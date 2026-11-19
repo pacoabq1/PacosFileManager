@@ -1101,6 +1101,8 @@ namespace Files.App.Views.Layouts
 					}
 				}
 
+				PaneDragDropHelpers.MarkSourcePane(e.Data, ParentShellPageInstance);
+
 				// Set can window to front (#13255)
 				MainWindow.Instance.SetCanWindowToFront(false);
 				itemDragging = true;
@@ -1139,7 +1141,21 @@ namespace Files.App.Views.Layouts
 			{
 				deferral = e.GetDeferral();
 
-				if (FilesystemHelpers.HasDraggedStorageItems(e.DataView))
+				if (PaneDragDropHelpers.HasRemoteItems(e.DataView))
+				{
+					e.Handled = true;
+					if (item.PrimaryItemAttribute == StorageItemTypes.Folder && !item.IsArchive)
+					{
+						e.DragUIOverride.IsCaptionVisible = true;
+						e.DragUIOverride.Caption = string.Format(Strings.CopyToFolderCaptionText.GetLocalizedResource(), item.Name);
+						e.AcceptedOperation = DataPackageOperation.Copy;
+					}
+					else
+					{
+						e.AcceptedOperation = DataPackageOperation.None;
+					}
+				}
+				else if (FilesystemHelpers.HasDraggedStorageItems(e.DataView))
 				{
 					e.Handled = true;
 
@@ -1186,6 +1202,11 @@ namespace Files.App.Views.Layouts
 						}
 						else if (draggedItems.Any(x => x.Item is ZipStorageFile || x.Item is ZipStorageFolder)
 							|| ZipStorageFolder.IsZipPath(item.ItemPath!))
+						{
+							e.DragUIOverride.Caption = string.Format(Strings.CopyToFolderCaptionText.GetLocalizedResource(), item.Name);
+							e.AcceptedOperation = DataPackageOperation.Copy;
+						}
+						else if (PaneDragDropHelpers.IsFromOtherPane(e.DataView, ParentShellPageInstance))
 						{
 							e.DragUIOverride.Caption = string.Format(Strings.CopyToFolderCaptionText.GetLocalizedResource(), item.Name);
 							e.AcceptedOperation = DataPackageOperation.Copy;
@@ -1253,7 +1274,12 @@ namespace Files.App.Views.Layouts
 				dragOverItem = null;
 
 				var item = GetItemFromElement(sender);
-				if (item is not null)
+				if (item is not null && PaneDragDropHelpers.HasRemoteItems(e.DataView))
+				{
+					if (item.PrimaryItemAttribute == StorageItemTypes.Folder && !item.IsArchive)
+						await PaneDragDropHelpers.TryDropRemoteItemsAsync(e.DataView, item.ItemPath);
+				}
+				else if (item is not null)
 				{
 					// This is an async void handler, an escaping exception would take down the window
 					await SafetyExtensions.IgnoreExceptions(async () =>

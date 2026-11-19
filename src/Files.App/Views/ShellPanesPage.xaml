@@ -95,7 +95,17 @@
 					<StackPanel x:Name="RemoteBrowser" Visibility="Collapsed" Spacing="8">
 						<TextBox x:Name="RemoteDirectory" Header="Remote folder" Text="/" />
 						<Button Content="List folder" Click="RemoteList_Click" />
-						<ListView x:Name="RemoteEntries" MaxHeight="240" DisplayMemberPath="Name" />
+						<ListView
+							x:Name="RemoteEntries"
+							MaxHeight="240"
+							AllowDrop="True"
+							CanDragItems="True"
+							DisplayMemberPath="Name"
+							DragItemsCompleted="RemoteEntries_DragItemsCompleted"
+							DragItemsStarting="RemoteEntries_DragItemsStarting"
+							DragOver="RemoteEntries_DragOver"
+							Drop="RemoteEntries_Drop"
+							SelectionMode="Extended" />
 						<Button Content="Open selected folder" Click="RemoteOpen_Click" />
 						<Button Content="Upload file…" Click="RemoteUpload_Click" />
 						<Button Content="Download to active pane" Click="RemoteDownload_Click" />

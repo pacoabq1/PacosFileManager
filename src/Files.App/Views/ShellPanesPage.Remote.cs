@@ -5,9 +5,12 @@ using FluentFTP;
 using FluentFTP.Exceptions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 using Directory = System.IO.Directory;
+using DirectoryInfo = System.IO.DirectoryInfo;
 using File = System.IO.File;
+using FileAttributes = System.IO.FileAttributes;
 using IOException = System.IO.IOException;
 using Path = System.IO.Path;
 
@@ -108,20 +111,24 @@ namespace Files.App.Views
 				throw new ArgumentException("Enter an absolute remote folder path beginning with /.");
 
 			await client.SetWorkingDirectory(directory, token);
-			FtpListItem[] items;
-			try
-			{
-				items = await client.GetListing(directory, token);
-			}
-			catch (FtpCommandException exception) when (exception.CompletionCode is "500" or "502")
-			{
-				items = await client.GetListing(directory, FtpListOption.ForceList, token);
-			}
+			var items = await GetRemoteListingAsync(client, directory, token);
 			token.ThrowIfCancellationRequested();
 			_listedRemoteDirectory = directory;
 			RemoteDirectory.Text = directory;
 			RemoteEntries.ItemsSource = items;
 			RemoteStatus.Text = $"{items.Length} items in {directory}";
+		}
+
+		private static async Task<FtpListItem[]> GetRemoteListingAsync(AsyncFtpClient client, string directory, CancellationToken token)
+		{
+			try
+			{
+				return await client.GetListing(directory, token);
+			}
+			catch (FtpCommandException exception) when (exception.CompletionCode is "500" or "502")
+			{
+				return await client.GetListing(directory, FtpListOption.ForceList, token);
+			}
 		}
 
 		private async void RemoteUpload_Click(object sender, RoutedEventArgs e)
@@ -171,9 +178,7 @@ namespace Files.App.Views
 				if (!Directory.Exists(folder))
 					throw new IOException("Open a local folder in the active pane before downloading.");
 
-				if (string.IsNullOrEmpty(item.Name) || item.Name is "." or ".." ||
-					item.Name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
-					item.Name.EndsWith('.') || item.Name.EndsWith(' '))
+				if (!IsValidLocalName(item.Name))
 					throw new IOException("The selected file name is invalid on Windows.");
 
 				var destination = Path.Combine(folder, item.Name);
@@ -199,6 +204,236 @@ namespace Files.App.Views
 					File.Delete(temporaryPath);
 				}
 			});
+		}
+
+		private static bool IsValidLocalName(string? name) =>
+			!string.IsNullOrEmpty(name) && name is not "." and not ".." &&
+			name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 &&
+			!name.EndsWith('.') && !name.EndsWith(' ');
+
+		private void RemoteEntries_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
+		{
+			var items = e.Items.OfType<FtpListItem>()
+				.Where(item => item.Type is FtpObjectType.File or FtpObjectType.Directory && item.Name is not "." and not "..")
+				.ToList();
+			if (_remoteClient is null || _remoteOperation is not null || items.Count == 0)
+			{
+				e.Cancel = true;
+				return;
+			}
+
+			PaneDragDropHelpers.BeginRemoteDrag(e.Data, folder => DownloadRemoteItems(items, folder));
+		}
+
+		private void RemoteEntries_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args) =>
+			PaneDragDropHelpers.EndRemoteDrag();
+
+		private async void DownloadRemoteItems(IReadOnlyList<FtpListItem> items, string folder)
+		{
+			if (_remoteClient is not { } client)
+			{
+				RemoteStatus.Text = "Connect to a server before downloading.";
+				return;
+			}
+
+			await RunRemoteOperationAsync(async token =>
+			{
+				if (!Directory.Exists(folder))
+					throw new IOException("Drop remote items onto a local folder.");
+
+				int downloaded = 0;
+				foreach (var item in items)
+				{
+					token.ThrowIfCancellationRequested();
+					if (!IsValidLocalName(item.Name))
+						throw new IOException($"{item.Name} is not a valid name on Windows.");
+
+					var destination = Path.Combine(folder, item.Name);
+					if (item.Type is FtpObjectType.Directory)
+					{
+						if (File.Exists(destination))
+							throw new IOException($"A file named {item.Name} already exists in {folder}.");
+						if (Directory.Exists(destination) &&
+							!await ConfirmRemoteAsync("Merge into local folder?", $"{destination}\nFiles with the same name will be replaced.", "Merge"))
+							continue;
+
+						await DownloadRemoteFolderAsync(client, item.FullName, destination, token);
+					}
+					else
+					{
+						if (Directory.Exists(destination))
+							throw new IOException($"A folder named {item.Name} already exists in {folder}.");
+						if (File.Exists(destination) && !await ConfirmRemoteAsync("Replace local file?", destination, "Replace"))
+							continue;
+
+						await DownloadRemoteFileAsync(client, item.FullName, destination, token);
+					}
+					downloaded++;
+				}
+
+				RemoteStatus.Text = $"Downloaded {downloaded} of {items.Count} items to {folder}";
+			});
+		}
+
+		// Walks the folder here instead of using DownloadDirectory so every name is checked before it touches the disk.
+		private async Task DownloadRemoteFolderAsync(AsyncFtpClient client, string remoteFolder, string localFolder, CancellationToken token)
+		{
+			Directory.CreateDirectory(localFolder);
+			foreach (var entry in await GetRemoteListingAsync(client, remoteFolder, token))
+			{
+				token.ThrowIfCancellationRequested();
+				if (entry.Name is "." or ".." || entry.Type is not (FtpObjectType.File or FtpObjectType.Directory))
+					continue;
+				if (!IsValidLocalName(entry.Name))
+					throw new IOException($"{entry.FullName} is not a valid name on Windows.");
+
+				var destination = Path.Combine(localFolder, entry.Name);
+				if (entry.Type is FtpObjectType.Directory)
+					await DownloadRemoteFolderAsync(client, entry.FullName, destination, token);
+				else
+					await DownloadRemoteFileAsync(client, entry.FullName, destination, token);
+			}
+		}
+
+		private async Task DownloadRemoteFileAsync(AsyncFtpClient client, string remotePath, string destination, CancellationToken token)
+		{
+			var folder = Path.GetDirectoryName(destination)
+				?? throw new IOException($"{destination} has no parent folder.");
+			var temporaryPath = Path.Combine(folder, $".paco-{Guid.NewGuid():N}.download");
+			try
+			{
+				var status = await client.DownloadFile(temporaryPath, remotePath,
+					FtpLocalExists.Overwrite, FtpVerify.None, ShowRemoteProgress(destination, token), token);
+				token.ThrowIfCancellationRequested();
+				if (status != FtpStatus.Success)
+					throw new IOException($"Download returned {status} for {destination}.");
+
+				// Replacing an existing file was confirmed before the transfer started.
+				File.Move(temporaryPath, destination, true);
+			}
+			finally
+			{
+				File.Delete(temporaryPath);
+			}
+		}
+
+		private string RemoteDropFolder(DragEventArgs e) =>
+			(e.OriginalSource as FrameworkElement)?.DataContext is FtpListItem { Type: FtpObjectType.Directory } folder
+				? folder.FullName
+				: _listedRemoteDirectory;
+
+		private void RemoteEntries_DragOver(object sender, DragEventArgs e)
+		{
+			if (_remoteClient is null || _remoteOperation is not null || !global::Files.App.Utils.Storage.FilesystemHelpers.HasDraggedStorageItems(e.DataView))
+			{
+				e.AcceptedOperation = DataPackageOperation.None;
+				return;
+			}
+
+			e.Handled = true;
+			e.AcceptedOperation = DataPackageOperation.Copy;
+			e.DragUIOverride.IsCaptionVisible = true;
+			e.DragUIOverride.Caption = $"Upload to {RemoteDropFolder(e)}";
+		}
+
+		private async void RemoteEntries_Drop(object sender, DragEventArgs e)
+		{
+			if (_remoteClient is not { } client || !global::Files.App.Utils.Storage.FilesystemHelpers.HasDraggedStorageItems(e.DataView))
+				return;
+
+			e.Handled = true;
+			var remoteFolder = RemoteDropFolder(e);
+			List<string> paths;
+			var deferral = e.GetDeferral();
+			try
+			{
+				paths = (await global::Files.App.Utils.Storage.FilesystemHelpers.GetDraggedStorageItems(e.DataView))
+					.Select(item => item.Path)
+					.Where(path => !string.IsNullOrEmpty(path) && Path.IsPathRooted(path) && (File.Exists(path) || Directory.Exists(path)))
+					.Distinct(StringComparer.OrdinalIgnoreCase)
+					.ToList();
+			}
+			catch (Exception exception)
+			{
+				RemoteStatus.Text = exception.Message;
+				return;
+			}
+			finally
+			{
+				deferral.Complete();
+			}
+
+			if (paths.Count == 0)
+			{
+				RemoteStatus.Text = "Only local files and folders can be uploaded.";
+				return;
+			}
+
+			await RunRemoteOperationAsync(async token =>
+			{
+				int uploaded = 0;
+				foreach (var path in paths)
+				{
+					token.ThrowIfCancellationRequested();
+					var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
+					if (string.IsNullOrEmpty(name))
+						continue;
+
+					var destination = remoteFolder.TrimEnd('/') + "/" + name;
+					if (Directory.Exists(path))
+					{
+						if (await client.FileExists(destination, token))
+							throw new IOException($"A remote file named {name} already exists in {remoteFolder}.");
+						if (await client.DirectoryExists(destination, token) &&
+							!await ConfirmRemoteAsync("Merge into remote folder?", $"{destination}\nFiles with the same name will be replaced.", "Merge"))
+							continue;
+
+						await UploadLocalFolderAsync(client, path, destination, token);
+					}
+					else
+					{
+						if (await client.DirectoryExists(destination, token))
+							throw new IOException($"A remote folder named {name} already exists in {remoteFolder}.");
+						if (await client.FileExists(destination, token) && !await ConfirmRemoteAsync("Replace remote file?", destination, "Replace"))
+							continue;
+
+						await UploadLocalFileAsync(client, path, destination, token);
+					}
+					uploaded++;
+				}
+
+				await ListRemoteAsync(client, _listedRemoteDirectory, token);
+				RemoteStatus.Text = $"Uploaded {uploaded} of {paths.Count} items to {remoteFolder}";
+			});
+		}
+
+		private async Task UploadLocalFolderAsync(AsyncFtpClient client, string localFolder, string remoteFolder, CancellationToken token)
+		{
+			if (!await client.DirectoryExists(remoteFolder, token) && !await client.CreateDirectory(remoteFolder, token))
+				throw new IOException($"Could not create {remoteFolder}.");
+
+			foreach (var entry in new DirectoryInfo(localFolder).EnumerateFileSystemInfos())
+			{
+				token.ThrowIfCancellationRequested();
+				// Junctions and symbolic links can loop or point outside the dropped folder.
+				if (entry.Attributes.HasFlag(FileAttributes.ReparsePoint))
+					continue;
+
+				var destination = remoteFolder.TrimEnd('/') + "/" + entry.Name;
+				if (entry is DirectoryInfo)
+					await UploadLocalFolderAsync(client, entry.FullName, destination, token);
+				else
+					await UploadLocalFileAsync(client, entry.FullName, destination, token);
+			}
+		}
+
+		private async Task UploadLocalFileAsync(AsyncFtpClient client, string localPath, string destination, CancellationToken token)
+		{
+			// Replacing an existing file was confirmed before the transfer started.
+			var status = await client.UploadFile(localPath, destination, FtpRemoteExists.Overwrite,
+				false, FtpVerify.None, ShowRemoteProgress(destination, token), token);
+			if (status != FtpStatus.Success)
+				throw new IOException($"Upload returned {status} for {destination}.");
 		}
 
 		private async Task<bool> ConfirmRemoteAsync(string title, string message, string action)
